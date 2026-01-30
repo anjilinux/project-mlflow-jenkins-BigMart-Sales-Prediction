@@ -140,7 +140,7 @@ stage("Prediction API Test") {
         if [ -n "$PID" ]; then
             echo "Port $PORT in use by PID $PID. Killing..."
             kill -9 $PID
-            sleep 2
+            sleep 4
         else
             echo "Port $PORT is free."
         fi
@@ -157,7 +157,7 @@ stage("Prediction API Test") {
                 echo "Flask is healthy!"
                 break
             fi
-            sleep 2
+            sleep 15
         done
 
         if ! curl -s http://localhost:$PORT/health > /dev/null; then
