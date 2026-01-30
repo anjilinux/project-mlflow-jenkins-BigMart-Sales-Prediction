@@ -134,39 +134,42 @@ pipeline {
                 echo "Activating virtual environment..."
                 . $VENV_NAME/bin/activate
 
-                echo "Starting Gunicorn as daemon..."
-                gunicorn -w 2 -b 0.0.0.0:5001 app.app:app --daemon
-                echo "Gunicorn started."
+                echo "Starting Gunicorn in background..."
+                gunicorn -w 2 -b 0.0.0.0:5001 app.app:app > gunicorn.log 2>&1 &
+                FLASK_PID=$!
+                echo "Gunicorn PID: $FLASK_PID"
 
                 echo "Waiting for service health..."
                 for i in {1..20}; do
-                if curl -s -f http://localhost:5001/health > /dev/null; then
-                    echo "Service is healthy"
-                    break
-                fi
-                echo "Waiting..."
-                sleep 2
+                    if curl -s -f http://localhost:5001/health > /dev/null; then
+                        echo "Service is healthy"
+                        break
+                    fi
+                    echo "Waiting..."
+                    sleep 2
                 done
 
+                # Check if service failed to start
                 if ! curl -s -f http://localhost:5001/health > /dev/null; then
-                echo "ERROR: Service did not start!"
-                pkill -f "gunicorn: master [app.app:app]"
-                exit 1
+                    echo "ERROR: Service did not start!"
+                    kill -9 $FLASK_PID || true
+                    exit 1
                 fi
 
                 echo "Sending prediction request..."
                 curl -s -f -X POST http://localhost:5001/predict \
-                -H "Content-Type: application/json" \
-                -d '{"features": [1,2,3,4,5,6,7,8,9]}'
+                    -H "Content-Type: application/json" \
+                    -d '{"features": [1,2,3,4,5,6,7,8,9]}'
 
                 echo "Prediction API test passed"
 
                 echo "Stopping Gunicorn..."
-                pkill -f "gunicorn: master [app.app:app]"
+                kill -9 $FLASK_PID || true
                 echo "Gunicorn stopped successfully."
                 '''
             }
         }
+
 
 
 
