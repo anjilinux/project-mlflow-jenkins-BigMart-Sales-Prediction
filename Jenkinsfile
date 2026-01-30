@@ -146,7 +146,7 @@ pipeline {
                     break
                 fi
                 echo "Waiting..."
-                sleep 2
+                sleep 15
                 done
 
                 if ! curl -s -f http://localhost:5001/health > /dev/null; then
