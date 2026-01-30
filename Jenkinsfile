@@ -136,8 +136,9 @@ pipeline {
         stage("Prediction API Test") {
             steps {
                 sh '''
-                echo "Waiting for Flask app health..."
+                echo "Waiting for Flask/Gunicorn service to become healthy..."
 
+                # Wait up to 30 seconds for health check
                 for i in {1..10}; do
                 if curl -f http://localhost:5001/health; then
                     echo "Service is healthy"
@@ -156,11 +157,24 @@ pipeline {
 
                 echo "Prediction API test passed"
 
-                echo "Waiting 30 seconds before shutdown..."
-                sleep 30
+                # Wait a bit before shutdown
+                echo "Sleeping 10 seconds before stopping service..."
+                sleep 10
 
+                # Stop service by port (safe)
                 echo "Stopping API running on port 5001..."
                 fuser -k 5001/tcp || true
+
+                # Extra safety: kill any gunicorn processes on port 5001
+                PID=$(ps aux | grep gunicorn | grep 5001 | grep -v grep | awk '{print $2}')
+                if [ -n "$PID" ]; then
+                echo "Killing process PID=$PID"
+                kill -9 $PID
+                else
+                echo "No gunicorn process found on port 5001"
+                fi
+
+                echo "Service stopped successfully."
                 '''
             }
         }
