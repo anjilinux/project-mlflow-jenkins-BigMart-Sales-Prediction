@@ -123,6 +123,10 @@ pipeline {
                 '''
             }
         }
+
+
+
+
                 
         stage("Prediction API Test") {
             steps {
@@ -130,13 +134,12 @@ pipeline {
                 echo "Activating virtual environment..."
                 . $VENV_NAME/bin/activate
 
-                echo "Starting Flask API in background..."
-                nohup python app/app.py > flask.log 2>&1 &
+                echo "Starting Gunicorn in background..."
+                nohup gunicorn -w 2 -b 0.0.0.0:5001 app.app:app > gunicorn.log 2>&1 &
                 FLASK_PID=$!
-                echo "Flask PID: $FLASK_PID"
+                echo "Gunicorn PID: $FLASK_PID"
 
-                # Wait until health endpoint returns 200
-                echo "Waiting for Flask app health..."
+                echo "Waiting for service health..."
                 for i in {1..20}; do
                 if curl -s -f http://localhost:5001/health > /dev/null; then
                     echo "Service is healthy"
@@ -146,9 +149,8 @@ pipeline {
                 sleep 2
                 done
 
-                # Check if Flask is still not ready
                 if ! curl -s -f http://localhost:5001/health > /dev/null; then
-                echo "ERROR: Flask did not start in time!"
+                echo "ERROR: Service did not start in time!"
                 kill -9 $FLASK_PID || true
                 exit 1
                 fi
@@ -160,15 +162,13 @@ pipeline {
 
                 echo "Prediction API test passed"
 
-                echo "Sleeping 5 seconds before killing Flask..."
-                sleep 5
-
-                echo "Stopping Flask service..."
+                echo "Stopping Gunicorn..."
                 kill -9 $FLASK_PID || true
-                echo "Flask service stopped successfully."
+                echo "Service stopped successfully."
                 '''
             }
         }
+
 
 
         
