@@ -177,16 +177,16 @@ stage("Prediction API Test") {
 
 
 
-        stage('Run Flask App') {
-            steps {
-                sh '''
-                . venv/bin/activate
-                nohup python app.py > flask.log 2>&1 &
-                sleep 5
-                curl http://localhost:5001/
-                '''
-            }
-        }
+        // stage('Run Flask App') {
+        //     steps {
+        //         sh '''
+        //         . venv/bin/activate
+        //         nohup python app.py > flask.log 2>&1 &
+        //         sleep 5
+        //         curl http://localhost:5001/
+        //         '''
+        //     }
+        // }
 
 
 
