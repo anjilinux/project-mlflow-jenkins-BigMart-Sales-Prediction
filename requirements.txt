@@ -1,0 +1,22 @@
+# Core
+python-dotenv
+
+# Data
+pandas
+numpy
+
+# ML
+scikit-learn
+joblib
+
+# MLOps
+mlflow
+
+# API
+flask
+
+# Testing
+pytest
+
+# Optional (recommended for monitoring & stability)
+gunicorn
