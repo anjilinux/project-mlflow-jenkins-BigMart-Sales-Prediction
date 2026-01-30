@@ -127,17 +127,16 @@ pipeline {
 
 
 
-                
+                        
         stage("Prediction API Test") {
             steps {
                 sh '''
                 echo "Activating virtual environment..."
                 . $VENV_NAME/bin/activate
 
-                echo "Starting Gunicorn in background..."
-                nohup gunicorn -w 2 -b 0.0.0.0:5001 app.app:app > gunicorn.log 2>&1 &
-                FLASK_PID=$!
-                echo "Gunicorn PID: $FLASK_PID"
+                echo "Starting Gunicorn as daemon..."
+                gunicorn -w 2 -b 0.0.0.0:5001 app.app:app --daemon
+                echo "Gunicorn started."
 
                 echo "Waiting for service health..."
                 for i in {1..20}; do
@@ -146,12 +145,12 @@ pipeline {
                     break
                 fi
                 echo "Waiting..."
-                sleep 15
+                sleep 2
                 done
 
                 if ! curl -s -f http://localhost:5001/health > /dev/null; then
-                echo "ERROR: Service did not start in time!"
-                kill -9 $FLASK_PID || true
+                echo "ERROR: Service did not start!"
+                pkill -f "gunicorn: master [app.app:app]"
                 exit 1
                 fi
 
@@ -163,11 +162,12 @@ pipeline {
                 echo "Prediction API test passed"
 
                 echo "Stopping Gunicorn..."
-                kill -9 $FLASK_PID || true
-                echo "Service stopped successfully."
+                pkill -f "gunicorn: master [app.app:app]"
+                echo "Gunicorn stopped successfully."
                 '''
             }
         }
+
 
 
 
