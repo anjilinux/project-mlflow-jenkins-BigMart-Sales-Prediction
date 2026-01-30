@@ -15,7 +15,7 @@ pipeline {
         stage("Checkout Code") {
             steps {
                 git branch: "master",
-                    url: "https://github.com/your-repo/bigmart-mlops.git"
+                    url: "https://github.com/anjilinux/project-mlflow-jenkins-BigMart-Sales-Prediction.git"
             }
         }
 
