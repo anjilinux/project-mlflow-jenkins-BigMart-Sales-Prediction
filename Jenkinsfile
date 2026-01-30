@@ -124,46 +124,52 @@ pipeline {
             }
         }
                 
-stage("Prediction API Test") {
-    steps {
-        sh '''
-        echo "Activating virtual environment..."
-        . $VENV_NAME/bin/activate
+        stage("Prediction API Test") {
+            steps {
+                sh '''
+                echo "Activating virtual environment..."
+                . $VENV_NAME/bin/activate
 
-        echo "Starting Flask API in background..."
-        nohup python app/app.py > flask.log 2>&1 &
-        FLASK_PID=$!
-        echo "Flask PID: $FLASK_PID"
+                echo "Starting Flask API in background..."
+                nohup python app/app.py > flask.log 2>&1 &
+                FLASK_PID=$!
+                echo "Flask PID: $FLASK_PID"
 
-        # Wait until health endpoint returns 200
-        echo "Waiting for Flask app health..."
-        for i in {1..10}; do
-          if curl -f http://localhost:5001/health; then
-            echo "Service is healthy"
-            break
-          fi
-          echo "Waiting..."
-          sleep 3
-        done
+                # Wait until health endpoint returns 200
+                echo "Waiting for Flask app health..."
+                for i in {1..20}; do
+                if curl -s -f http://localhost:5001/health > /dev/null; then
+                    echo "Service is healthy"
+                    break
+                fi
+                echo "Waiting..."
+                sleep 2
+                done
 
-        echo "Sending prediction request..."
-        curl -f -X POST http://localhost:5001/predict \
-          -H "Content-Type: application/json" \
-          -d '{
-                "features": [1,2,3,4,5,6,7,8,9]
-              }'
+                # Check if Flask is still not ready
+                if ! curl -s -f http://localhost:5001/health > /dev/null; then
+                echo "ERROR: Flask did not start in time!"
+                kill -9 $FLASK_PID || true
+                exit 1
+                fi
 
-        echo "Prediction API test passed"
+                echo "Sending prediction request..."
+                curl -s -f -X POST http://localhost:5001/predict \
+                -H "Content-Type: application/json" \
+                -d '{"features": [1,2,3,4,5,6,7,8,9]}'
 
-        echo "Sleeping 10 seconds before killing Flask..."
-        sleep 10
+                echo "Prediction API test passed"
 
-        echo "Stopping Flask service..."
-        kill -9 $FLASK_PID || true
-        echo "Flask service stopped successfully."
-        '''
-    }
-}
+                echo "Sleeping 5 seconds before killing Flask..."
+                sleep 5
+
+                echo "Stopping Flask service..."
+                kill -9 $FLASK_PID || true
+                echo "Flask service stopped successfully."
+                '''
+            }
+        }
+
 
         
         /* ================================
