@@ -124,6 +124,14 @@ pipeline {
             }
         }
 
+        stage("DEPLOY-TO flask") {
+            steps {
+                sh '''
+                . $VENV_NAME/bin/activate
+                python app.py
+                '''
+            }
+        }
         /* ================================
            Stage 10: Archive Artifacts
         ================================= */
