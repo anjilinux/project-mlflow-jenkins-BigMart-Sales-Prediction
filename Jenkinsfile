@@ -127,40 +127,40 @@ pipeline {
 stage("Prediction API Test") {
     steps {
         sh '''
+        # Activate virtual environment
         echo "Activating virtual environment..."
         . venv/bin/activate
 
-        echo "Starting Flask API in background..."
+        # Start Flask app in background
+        echo "Starting Flask API..."
         nohup python app.py > flask.log 2>&1 &
         FLASK_PID=$!
         echo "Flask PID: $FLASK_PID"
 
-        # Wait for the health endpoint to be ready
-        echo "Waiting for Flask app health..."
-        for i in {1..30}; do
-          if curl -s -f http://localhost:5001/health > /dev/null; then
-            echo "Service is healthy"
-            break
-          fi
-          echo "Waiting 2 seconds..."
-          sleep 2
+        # Wait for health endpoint
+        echo "Waiting for Flask to be ready..."
+        for i in {1..20}; do
+            if curl -s -f http://localhost:5001/health > /dev/null; then
+                echo "Flask is healthy!"
+                break
+            fi
+            echo "Waiting 2 seconds..."
+            sleep 2
         done
 
         # Final health check
         if ! curl -s -f http://localhost:5001/health > /dev/null; then
-          echo "ERROR: Flask did not start in time!"
-          kill -9 $FLASK_PID || true
-          exit 1
+            echo "ERROR: Flask did not start in time!"
+            kill -9 $FLASK_PID || true
+            exit 1
         fi
 
-        # Send prediction request
+        # Send test prediction
         echo "Sending prediction request..."
         RESPONSE=$(curl -s -X POST http://localhost:5001/predict \
-          -H "Content-Type: application/json" \
-          -d '{"features": [1,2,3,4,5,6,7,8,9]}')
+            -H "Content-Type: application/json" \
+            -d '{"features": [1,2,3,4,5,6,7,8,9]}')
         echo "Prediction response: $RESPONSE"
-
-        echo "Prediction API test passed"
 
         # Stop Flask
         echo "Stopping Flask..."
@@ -169,6 +169,7 @@ stage("Prediction API Test") {
         '''
     }
 }
+
 
 
 
