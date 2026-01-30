@@ -155,6 +155,12 @@ pipeline {
                     }'
 
                 echo "Prediction API test passed"
+
+                echo "Waiting 30 seconds before shutdown..."
+                sleep 30
+
+                echo "Stopping API running on port 5001..."
+                fuser -k 5001/tcp || true
                 '''
             }
         }
