@@ -131,15 +131,16 @@ stage("Prediction API Test") {
         echo "Activating virtual environment..."
         . venv/bin/activate
 
-        # Start Flask app in background
+        # Start Flask app in background on port 5001
         echo "Starting Flask API..."
-        nohup python app.py > flask.log 2>&1 &
+        export FLASK_APP=app.py
+        nohup python -m flask run --host=0.0.0.0 --port=5001 > flask.log 2>&1 &
         FLASK_PID=$!
         echo "Flask PID: $FLASK_PID"
 
-        # Wait for health endpoint
+        # Wait for health endpoint (retry until ready)
         echo "Waiting for Flask to be ready..."
-        for i in {1..20}; do
+        for i in {1..30}; do
             if curl -s -f http://localhost:5001/health > /dev/null; then
                 echo "Flask is healthy!"
                 break
@@ -152,6 +153,7 @@ stage("Prediction API Test") {
         if ! curl -s -f http://localhost:5001/health > /dev/null; then
             echo "ERROR: Flask did not start in time!"
             kill -9 $FLASK_PID || true
+            cat flask.log
             exit 1
         fi
 
@@ -169,6 +171,7 @@ stage("Prediction API Test") {
         '''
     }
 }
+
 
 
 
