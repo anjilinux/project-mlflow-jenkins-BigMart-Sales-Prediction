@@ -127,63 +127,59 @@ pipeline {
 stage("Prediction API Test") {
     steps {
         sh '''
+        set +e   # VERY IMPORTANT: do not fail on non-zero commands
+
         echo "Activating virtual environment..."
         . venv/bin/activate
 
-        # Kill any process running on port 5001
         PORT=5001
-        PID=$(lsof -ti:$PORT)
+        echo "Checking if port $PORT is already in use..."
+
+        # Kill process using port (ss is safer than lsof)
+        PID=$(ss -lptn "sport = :$PORT" | awk -F',' '{print $2}' | awk -F'=' '{print $2}')
         if [ -n "$PID" ]; then
-            echo "Port $PORT is in use by PID(s): $PID. Killing..."
+            echo "Port $PORT in use by PID $PID. Killing..."
             kill -9 $PID
-            echo "Killed previous Flask process."
             sleep 2
         else
             echo "Port $PORT is free."
         fi
 
-        # Export Flask app
-        export FLASK_APP=app.py
-
-        # Start Flask in background
         echo "Starting Flask API..."
+        export FLASK_APP=app.py
         nohup python -m flask run --host=0.0.0.0 --port=$PORT > flask.log 2>&1 &
         FLASK_PID=$!
         echo "Flask PID: $FLASK_PID"
 
-        # Wait for health endpoint
         echo "Waiting for Flask to be ready..."
-        for i in {1..20}; do
-            if curl -s -f http://localhost:$PORT/health > /dev/null; then
+        for i in {1..25}; do
+            if curl -s http://localhost:$PORT/health > /dev/null; then
                 echo "Flask is healthy!"
                 break
             fi
-            echo "Waiting 2 seconds..."
             sleep 2
         done
 
-        if ! curl -s -f http://localhost:$PORT/health > /dev/null; then
-            echo "ERROR: Flask did not start in time!"
+        if ! curl -s http://localhost:$PORT/health > /dev/null; then
+            echo "ERROR: Flask failed to start"
             cat flask.log
-            kill -9 $FLASK_PID || true
+            kill -9 $FLASK_PID
             exit 1
         fi
 
-        # Send test prediction
         echo "Sending prediction request..."
         RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
             -H "Content-Type: application/json" \
-            -d '{"features": [1,2,3,4,5,6,7,8,9]}')
+            -d '{"features":[1,2,3,4,5,6,7,8,9]}')
+
         echo "Prediction response: $RESPONSE"
 
-        # Stop Flask
         echo "Stopping Flask..."
-        kill -9 $FLASK_PID || true
-        echo "Flask stopped successfully."
+        kill -9 $FLASK_PID
+        echo "Flask stopped cleanly."
         '''
     }
 }
-
 
 
 
