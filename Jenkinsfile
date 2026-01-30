@@ -132,6 +132,34 @@ pipeline {
                 '''
             }
         }
+
+        stage("Prediction API Test") {
+            steps {
+                sh '''
+                echo "Waiting for Flask app health..."
+
+                for i in {1..10}; do
+                if curl -f http://localhost:5001/health; then
+                    echo "Service is healthy"
+                    break
+                fi
+                echo "Waiting..."
+                sleep 3
+                done
+
+                echo "Sending prediction request..."
+                curl -f -X POST http://localhost:5001/predict \
+                -H "Content-Type: application/json" \
+                -d '{
+                        "features": [1,2,3,4,5,6,7,8,9]
+                    }'
+
+                echo "Prediction API test passed"
+                '''
+            }
+        }
+
+        
         /* ================================
            Stage 10: Archive Artifacts
         ================================= */
