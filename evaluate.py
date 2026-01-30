@@ -1,12 +1,13 @@
 # src/evaluate.py
-from sklearn.metrics import r2_score, mean_squared_error
 import joblib
 import pandas as pd
 import mlflow
+from sklearn.metrics import r2_score, mean_squared_error
 
-model = joblib.load("model.pkl")
+model = joblib.load("model.pkl")   # ✅ FIX
 
-df = pd.read_csv("data/processed/final_data.csv")
+df = pd.read_csv("final_data.csv")
+
 X = df.drop("Item_Outlet_Sales", axis=1)
 y = df["Item_Outlet_Sales"]
 
