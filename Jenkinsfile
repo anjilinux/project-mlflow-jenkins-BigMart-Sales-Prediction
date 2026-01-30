@@ -124,8 +124,7 @@ pipeline {
             }
         }
 
-
-   stage("Prediction API Test") {
+stage("Prediction API Test") {
     steps {
         sh '''
         echo "Activating virtual environment..."
@@ -138,12 +137,12 @@ pipeline {
 
         # Wait for the health endpoint to be ready
         echo "Waiting for Flask app health..."
-        for i in {1..20}; do
+        for i in {1..30}; do
           if curl -s -f http://localhost:5001/health > /dev/null; then
             echo "Service is healthy"
             break
           fi
-          echo "Waiting..."
+          echo "Waiting 2 seconds..."
           sleep 2
         done
 
@@ -159,7 +158,6 @@ pipeline {
         RESPONSE=$(curl -s -X POST http://localhost:5001/predict \
           -H "Content-Type: application/json" \
           -d '{"features": [1,2,3,4,5,6,7,8,9]}')
-
         echo "Prediction response: $RESPONSE"
 
         echo "Prediction API test passed"
