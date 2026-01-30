@@ -5,7 +5,7 @@ import mlflow
 import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score
 
-model = joblib.load("models/model.pkl")
+model = joblib.load("model.pkl")
 
 df = pd.read_csv("final_data.csv")
 

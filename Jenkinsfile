@@ -27,7 +27,7 @@ pipeline {
                 sh '''
                 python3 -m venv $VENV_NAME
                 . $VENV_NAME/bin/activate
-                pip install --upgrade pip
+
                 pip install -r requirements.txt
                 '''
                 sh 'ls -R'
@@ -141,8 +141,8 @@ pipeline {
         failure {
             echo "❌ Pipeline Failed – Check Logs"
         }
-        always {
-            cleanWs()
-        }
+        // always {
+        //     cleanWs()
+        // }
     }
 }
