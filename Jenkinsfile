@@ -19,7 +19,7 @@ pipeline {
             }
         }
 
-        /* ================================
+        /* ===  =============================
            Stage 2: Python Virtual Environment
         ================================= */
         stage("Setup Virtual Environment") {
