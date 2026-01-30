@@ -1,56 +1,42 @@
-# app/app.py
 from flask import Flask, request, jsonify
-import joblib
+import pickle
 import numpy as np
-import os
+import pandas as pd
 
 app = Flask(__name__)
 
 MODEL_PATH = "model.pkl"
 
-# Load model safely
-try:
-    model = joblib.load(MODEL_PATH)
-    model_loaded = True
-except Exception as e:
-    model = None
-    model_loaded = False
-    load_error = str(e)
+# Load model ONCE
+with open(MODEL_PATH, "rb") as f:
+    model = pickle.load(f)
 
+FEATURE_NAMES = [
+    "Item_Weight", "Item_Fat_Content", "Item_Visibility",
+    "Item_Type", "Item_MRP", "Outlet_Establishment_Year",
+    "Outlet_Size", "Outlet_Location_Type", "Outlet_Type"
+]
 
 @app.route("/health", methods=["GET"])
-def health_check():
-    """
-    Health check endpoint for Jenkins / Kubernetes / Load Balancers
-    """
-    status = {
-        "status": "UP" if model_loaded else "DOWN",
-        "model_loaded": model_loaded,
-        "model_path": MODEL_PATH
-    }
-
-    if not model_loaded:
-        status["error"] = load_error
-
-    return jsonify(status), 200 if model_loaded else 500
-
+def health():
+    return jsonify({"status": "UP"}), 200
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    if not model_loaded:
-        return jsonify({"error": "Model not loaded"}), 500
+    try:
+        data = request.get_json()
+        features = data["features"]
 
-    data = request.json.get("features")
+        if len(features) != len(FEATURE_NAMES):
+            return jsonify({"error": "Invalid feature length"}), 400
 
-    if data is None:
-        return jsonify({"error": "Missing 'features' in request"}), 400
+        X = pd.DataFrame([features], columns=FEATURE_NAMES)
+        prediction = model.predict(X)
 
-    data = np.array(data).reshape(1, -1)
-    prediction = model.predict(data)
+        return jsonify({"prediction": float(prediction[0])})
 
-    return jsonify({
-        "sales_prediction": float(prediction[0])
-    })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
