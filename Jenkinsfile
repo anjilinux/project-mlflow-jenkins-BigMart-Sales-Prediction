@@ -127,21 +127,34 @@ pipeline {
 stage("Prediction API Test") {
     steps {
         sh '''
-        # Activate virtual environment
         echo "Activating virtual environment..."
         . venv/bin/activate
 
-        # Start Flask app in background on port 5001
-        echo "Starting Flask API..."
+        # Kill any process running on port 5001
+        PORT=5001
+        PID=$(lsof -ti:$PORT)
+        if [ -n "$PID" ]; then
+            echo "Port $PORT is in use by PID(s): $PID. Killing..."
+            kill -9 $PID
+            echo "Killed previous Flask process."
+            sleep 2
+        else
+            echo "Port $PORT is free."
+        fi
+
+        # Export Flask app
         export FLASK_APP=app.py
-        nohup python -m flask run --host=0.0.0.0 --port=5001 > flask.log 2>&1 &
+
+        # Start Flask in background
+        echo "Starting Flask API..."
+        nohup python -m flask run --host=0.0.0.0 --port=$PORT > flask.log 2>&1 &
         FLASK_PID=$!
         echo "Flask PID: $FLASK_PID"
 
-        # Wait for health endpoint (retry until ready)
+        # Wait for health endpoint
         echo "Waiting for Flask to be ready..."
-        for i in {1..30}; do
-            if curl -s -f http://localhost:5001/health > /dev/null; then
+        for i in {1..20}; do
+            if curl -s -f http://localhost:$PORT/health > /dev/null; then
                 echo "Flask is healthy!"
                 break
             fi
@@ -149,17 +162,16 @@ stage("Prediction API Test") {
             sleep 2
         done
 
-        # Final health check
-        if ! curl -s -f http://localhost:5001/health > /dev/null; then
+        if ! curl -s -f http://localhost:$PORT/health > /dev/null; then
             echo "ERROR: Flask did not start in time!"
-            kill -9 $FLASK_PID || true
             cat flask.log
+            kill -9 $FLASK_PID || true
             exit 1
         fi
 
         # Send test prediction
         echo "Sending prediction request..."
-        RESPONSE=$(curl -s -X POST http://localhost:5001/predict \
+        RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
             -H "Content-Type: application/json" \
             -d '{"features": [1,2,3,4,5,6,7,8,9]}')
         echo "Prediction response: $RESPONSE"
