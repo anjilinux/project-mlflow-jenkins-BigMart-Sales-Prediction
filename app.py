@@ -1,46 +1,57 @@
 from flask import Flask, request, jsonify
-import joblib
+import pickle
 import pandas as pd
+import time
+
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = Flask(__name__)
 
+# =========================
+# Prometheus Metrics
+# =========================
+REQUEST_COUNT = Counter(
+    "prediction_requests_total",
+    "Total number of prediction requests"
+)
+
+PREDICTION_TIME = Histogram(
+    "prediction_latency_seconds",
+    "Time spent processing prediction"
+)
+
+# =========================
+# Load Model ONCE
+# =========================
 MODEL_PATH = "model.pkl"
 
-# Load model ONCE at startup
-model = joblib.load(MODEL_PATH)
+with open(MODEL_PATH, "rb") as f:
+    model = pickle.load(f)
 
-# MUST match training schema EXACTLY
 FEATURE_NAMES = [
-    "Item_Identifier",
-    "Item_Weight",
-    "Item_Fat_Content",
-    "Item_Visibility",
-    "Item_Type",
-    "Item_MRP",
-    "Outlet_Identifier",
-    "Outlet_Establishment_Year",
-    "Outlet_Size",
-    "Outlet_Location_Type",
-    "Outlet_Type"
+    "Item_Identifier", "Item_Weight", "Item_Fat_Content",
+    "Item_Visibility", "Item_Type", "Item_MRP",
+    "Outlet_Identifier", "Outlet_Establishment_Year",
+    "Outlet_Size", "Outlet_Location_Type", "Outlet_Type"
 ]
 
-print("✅ Model loaded successfully")
-print("Model expects features:", FEATURE_NAMES)
-
-
+# =========================
+# Health Check
+# =========================
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "UP"}), 200
 
-
+# =========================
+# Prediction Endpoint
+# =========================
 @app.route("/predict", methods=["POST"])
 def predict():
+    REQUEST_COUNT.inc()  # 🔥 Count requests
+
+    start_time = time.time()
     try:
         data = request.get_json()
-
-        if "features" not in data:
-            return jsonify({"error": "Missing 'features' key"}), 400
-
         features = data["features"]
 
         if len(features) != len(FEATURE_NAMES):
@@ -51,10 +62,21 @@ def predict():
         X = pd.DataFrame([features], columns=FEATURE_NAMES)
         prediction = model.predict(X)
 
-        return jsonify({"prediction": float(prediction[0])}), 200
+        return jsonify({"prediction": float(prediction[0])})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    finally:
+        PREDICTION_TIME.observe(time.time() - start_time)  # ⏱ latency
+
+
+# =========================
+# Prometheus Metrics
+# =========================
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 
 if __name__ == "__main__":

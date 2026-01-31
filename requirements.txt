@@ -20,3 +20,4 @@ pytest
 
 # Optional (recommended for monitoring & stability)
 gunicorn
+prometheus-client
