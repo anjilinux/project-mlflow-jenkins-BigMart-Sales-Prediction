@@ -190,7 +190,7 @@ stage("Docker Build & Run") {
         sh '''
         docker build -t bigmart-api .
         docker run -d -p 5002:5001 --name bigmart-api bigmart-api
-        sleep 10
+        sleep 50
         curl -sf http://localhost:5002/health
         docker stop bigmart-api
         docker rm bigmart-api
