@@ -30,7 +30,6 @@ pipeline {
 
                 pip install -r requirements.txt
                 '''
-                #sh 'ls -R'
             }
         }
 
