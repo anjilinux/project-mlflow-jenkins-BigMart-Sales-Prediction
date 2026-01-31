@@ -182,9 +182,6 @@ stage("Prediction API Test") {
         '''
     }
 }
-
-
-
 stage("Docker Build & Run") {
     steps {
         sh '''
@@ -197,7 +194,6 @@ stage("Docker Build & Run") {
         '''
     }
 }
-
         /* ================================
            Stage 10: Archive Artifacts
         ================================= */
