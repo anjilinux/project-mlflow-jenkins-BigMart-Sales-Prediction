@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
-import pickle
 import pandas as pd
 import time
+import os
+import joblib
 
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
@@ -21,12 +22,14 @@ PREDICTION_TIME = Histogram(
 )
 
 # =========================
-# Load Model ONCE
+# Load Model ONCE (joblib)
 # =========================
 MODEL_PATH = "model.pkl"
 
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+if not os.path.exists(MODEL_PATH):
+    raise RuntimeError("❌ model.pkl not found. Train model before starting API")
+
+model = joblib.load(MODEL_PATH)
 
 FEATURE_NAMES = [
     "Item_Identifier", "Item_Weight", "Item_Fat_Content",
@@ -47,9 +50,9 @@ def health():
 # =========================
 @app.route("/predict", methods=["POST"])
 def predict():
-    REQUEST_COUNT.inc()  # 🔥 Count requests
-
+    REQUEST_COUNT.inc()
     start_time = time.time()
+
     try:
         data = request.get_json()
         features = data["features"]
@@ -68,8 +71,7 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
     finally:
-        PREDICTION_TIME.observe(time.time() - start_time)  # ⏱ latency
-
+        PREDICTION_TIME.observe(time.time() - start_time)
 
 # =========================
 # Prometheus Metrics
@@ -77,7 +79,6 @@ def predict():
 @app.route("/metrics")
 def metrics():
     return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
