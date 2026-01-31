@@ -30,7 +30,7 @@ pipeline {
 
                 pip install -r requirements.txt
                 '''
-                sh 'ls -R'
+                #sh 'ls -R'
             }
         }
 
@@ -124,68 +124,63 @@ pipeline {
             }
         }
 
-stage("Prediction API Test") {
-    steps {
-        sh '''
-        set +e   # VERY IMPORTANT: do not fail on non-zero commands
+        stage("Prediction API Test") {
+            steps {
+                sh '''
+                set +e   # VERY IMPORTANT: do not fail on non-zero commands
 
-        echo "Activating virtual environment..."
-        . venv/bin/activate
+                echo "Activating virtual environment..."
+                . venv/bin/activate
 
-        PORT=5001
-        echo "Checking if port $PORT is already in use..."
+                PORT=5001
+                echo "Checking if port $PORT is already in use..."
 
-        # Kill process using port (ss is safer than lsof)
-        PID=$(ss -lptn "sport = :$PORT" | awk -F',' '{print $2}' | awk -F'=' '{print $2}')
-        if [ -n "$PID" ]; then
-            echo "Port $PORT in use by PID $PID. Killing..."
-            kill -9 $PID
-            sleep 4
-        else
-            echo "Port $PORT is free."
-        fi
+                # Kill process using port (ss is safer than lsof)
+                PID=$(ss -lptn "sport = :$PORT" | awk -F',' '{print $2}' | awk -F'=' '{print $2}')
+                if [ -n "$PID" ]; then
+                    echo "Port $PORT in use by PID $PID. Killing..."
+                    kill -9 $PID
+                    sleep 4
+                else
+                    echo "Port $PORT is free."
+                fi
 
-        echo "Starting Flask API..."
-        export FLASK_APP=app.py
-        nohup python -m flask run --host=0.0.0.0 --port=$PORT > flask.log 2>&1 &
-        FLASK_PID=$!
-        echo "Flask PID: $FLASK_PID"
+                echo "Starting Flask API..."
+                export FLASK_APP=app.py
+                nohup python -m flask run --host=0.0.0.0 --port=$PORT > flask.log 2>&1 &
+                FLASK_PID=$!
+                echo "Flask PID: $FLASK_PID"
 
-        echo "Waiting for Flask to be ready..."
-        for i in {1..25}; do
-            if curl -s http://localhost:$PORT/health > /dev/null; then
-                echo "Flask is healthy!"
-                break
-            fi
-            sleep 15
-        done
+                echo "Waiting for Flask to be ready..."
+                for i in {1..25}; do
+                    if curl -s http://localhost:$PORT/health > /dev/null; then
+                        echo "Flask is healthy!"
+                        break
+                    fi
+                    sleep 15
+                done
 
-        if ! curl -s http://localhost:$PORT/health > /dev/null; then
-            echo "ERROR: Flask failed to start"
-            cat flask.log
-            kill -9 $FLASK_PID
-            exit 1
-        fi
+                if ! curl -s http://localhost:$PORT/health > /dev/null; then
+                    echo "ERROR: Flask failed to start"
+                    cat flask.log
+                    kill -9 $FLASK_PID
+                    exit 1
+                fi
 
-        echo "Sending prediction request..."
-        RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
-            -H "Content-Type: application/json" \
-            -d '{"features":[1,2,3,4,5,6,7,8,9]}')
+                echo "Sending prediction request..."
+                RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
+                    -H "Content-Type: application/json" \
+                    -d '{"features":[1,2,3,4,5,6,7,8,9]}')
 
-        echo "Prediction response: $RESPONSE"
+                echo "Prediction response: $RESPONSE"
 
-        echo "Stopping Flask..."
-        kill -9 $FLASK_PID
-        echo "Flask stopped cleanly."
-        '''
-    }
-}
-
-
-
-
-
-        // stage('Run Flask App') {
+                echo "Stopping Flask..."
+                kill -9 $FLASK_PID
+                echo "Flask stopped cleanly."
+                '''
+            }
+        }
+     // stage('Run Flask App') {
         //     steps {
         //         sh '''
         //         . venv/bin/activate
@@ -197,10 +192,6 @@ stage("Prediction API Test") {
         // }
 
 
-
-
-
-        
         /* ================================
            Stage 10: Archive Artifacts
         ================================= */
